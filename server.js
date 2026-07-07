@@ -4,8 +4,6 @@ const cors = require('cors');
 const OpenAI = require('openai');
 const { toFile } = require('openai/uploads');
 const { execFile } = require('child_process');
-const os = require('os');
-const fs = require('fs');
 const path = require('path');
 
 const app = express();
@@ -125,30 +123,36 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
 });
 
 app.post('/api/convert-to-mp3', upload.single('audio'), async (req, res) => {
-  const tmpDir = os.tmpdir();
-  const inputFile = path.join(tmpDir, 'input-' + Date.now() + '.webm');
-  const outputFile = path.join(tmpDir, 'output-' + Date.now() + '.mp3');
-
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No audio file provided' });
     }
 
-    fs.writeFileSync(inputFile, req.file.buffer);
+    console.log('Converting to MP3, size:', req.file.size);
 
-    await new Promise((resolve, reject) => {
-      execFile('ffmpeg', [
-        '-y', '-i', inputFile,
+    const mp3Buffer = await new Promise((resolve, reject) => {
+      const chunks = [];
+      const child = execFile('ffmpeg', [
+        '-y',
+        '-f', 'webm',
+        '-i', 'pipe:0',
         '-codec:a', 'libmp3lame',
         '-qscale:a', '2',
-        outputFile,
-      ], (err) => {
-        if (err) reject(err);
-        else resolve();
+        '-f', 'mp3',
+        'pipe:1',
+      ], { maxBuffer: 50 * 1024 * 1024 }, (err) => {
+        if (err && err.code !== 0) reject(err);
+        else resolve(Buffer.concat(chunks));
       });
+
+      child.stdout.on('data', (data) => chunks.push(data));
+      child.stderr.on('data', () => {});
+
+      child.stdin.write(req.file.buffer);
+      child.stdin.end();
     });
 
-    const mp3Buffer = fs.readFileSync(outputFile);
+    console.log('MP3 size:', mp3Buffer.length);
     res.set({
       'Content-Type': 'audio/mpeg',
       'Content-Disposition': 'attachment; filename="recording.mp3"',
@@ -158,9 +162,6 @@ app.post('/api/convert-to-mp3', upload.single('audio'), async (req, res) => {
   } catch (err) {
     console.error('MP3 conversion error:', err.message);
     res.status(500).json({ error: 'MP3 conversion failed: ' + err.message });
-  } finally {
-    try { fs.unlinkSync(inputFile); } catch (e) {}
-    try { fs.unlinkSync(outputFile); } catch (e) {}
   }
 });
 
