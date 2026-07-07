@@ -22,6 +22,8 @@ const openai = new OpenAI({
   },
 });
 
+const CREDITS_LINK = 'https://openrouter.ai/settings/credits';
+
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
@@ -31,10 +33,46 @@ app.get('/api/debug', (req, res) => {
     provider: 'OpenRouter',
     baseURL: 'https://openrouter.ai/api/v1',
     model: 'openai/whisper-1',
+    fallback: 'google/gemini-2.0-flash-001',
     keyPresent: !!process.env.OPENROUTER_API_KEY,
     keyPrefix: process.env.OPENROUTER_API_KEY ? process.env.OPENROUTER_API_KEY.substring(0, 12) + '...' : 'not set',
   });
 });
+
+async function transcribeWithWhisper(buffer, name, mime) {
+  const file = await toFile(buffer, name, { type: mime });
+  const result = await openai.audio.transcriptions.create({
+    model: 'openai/whisper-1',
+    file,
+  });
+  return { text: result.text, model: 'openai/whisper-1' };
+}
+
+async function transcribeWithGemini(buffer, mime) {
+  const base64 = buffer.toString('base64');
+  const format = mime.includes('webm') ? 'webm' : mime.includes('mp4') ? 'mp4' : 'wav';
+
+  const completion = await openai.chat.completions.create({
+    model: 'google/gemini-2.0-flash-001',
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Transcribe the following audio to text. Return only the transcription, no other text.' },
+          {
+            type: 'input_audio',
+            input_audio: {
+              data: base64,
+              format: format,
+            },
+          },
+        ],
+      },
+    ],
+  });
+
+  return { text: completion.choices[0].message.content, model: 'google/gemini-2.0-flash-001' };
+}
 
 app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
   try {
@@ -44,18 +82,38 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
 
     console.log('Transcribing file:', req.file.originalname, 'size:', req.file.size, 'type:', req.file.mimetype);
 
-    const file = await toFile(req.file.buffer, req.file.originalname, { type: req.file.mimetype });
+    try {
+      const result = await transcribeWithWhisper(req.file.buffer, req.file.originalname, req.file.mimetype);
+      console.log('Whisper success:', result.text.substring(0, 80));
+      res.json({ text: result.text, model: result.model });
+    } catch (whisperErr) {
+      const isBalanceError =
+        whisperErr.status === 402 ||
+        (whisperErr.message && whisperErr.message.toLowerCase().includes('balance'));
 
-    const transcription = await openai.audio.transcriptions.create({
-      model: 'openai/whisper-1',
-      file,
-    });
-
-    console.log('Transcription success:', transcription.text.substring(0, 80));
-    res.json({ text: transcription.text });
+      if (isBalanceError) {
+        console.log('Whisper failed (402 balance), falling back to Gemini...');
+        try {
+          const result = await transcribeWithGemini(req.file.buffer, req.file.mimetype);
+          console.log('Gemini success:', result.text.substring(0, 80));
+          res.json({ text: result.text, model: result.model, fallback: true });
+        } catch (geminiErr) {
+          console.error('Gemini fallback error:', geminiErr.message);
+          res.status(500).json({
+            error: 'Whisper requires credits (402). Gemini fallback also failed: ' + geminiErr.message,
+            creditsLink: CREDITS_LINK,
+          });
+        }
+      } else {
+        throw whisperErr;
+      }
+    }
   } catch (err) {
-    console.error('Transcription error:', err.message, err.status, err.headers);
-    res.status(500).json({ error: err.message || 'Transcription failed' });
+    console.error('Transcription error:', err.message, err.status);
+    const msg = err.status === 402
+      ? 'OpenRouter Whisper requires $0.50+ balance. ' + CREDITS_LINK
+      : (err.message || 'Transcription failed');
+    res.status(500).json({ error: msg, creditsLink: err.status === 402 ? CREDITS_LINK : null });
   }
 });
 

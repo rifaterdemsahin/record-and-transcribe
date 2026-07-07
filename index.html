@@ -444,7 +444,7 @@
         try {
           const r = await fetch('/api/debug');
           const d = await r.json();
-          debug('Server: ' + d.provider + ' | model=' + d.model + ' | key=' + d.keyPrefix, 'key');
+          debug('Server: ' + d.provider + ' | whisper=' + d.model + ' | fallback=' + d.fallback + ' | key=' + d.keyPrefix, 'key');
         } catch (e) {
           debug('Server debug fetch failed: ' + e.message, 'error');
         }
@@ -669,10 +669,16 @@
 
           if (!response.ok) {
             debug('Response ' + response.status + ': ' + (data.error || 'unknown'), 'error');
-            throw new Error(data.error || 'Transcription failed');
+            if (data.creditsLink) {
+              debug('Add credits: ' + data.creditsLink, 'warn');
+            }
+            let msg = data.error || 'Transcription failed';
+            if (data.creditsLink) msg += '\n\nAdd credits: ' + data.creditsLink;
+            throw new Error(msg);
           }
 
-          debug('Response 200 OK | text: ' + data.text.substring(0, 60) + (data.text.length > 60 ? '...' : ''), 'ok');
+          const modelLabel = data.fallback ? 'gemini (fallback)' : (data.model || 'whisper');
+          debug('Response 200 | ' + modelLabel + ' | text: ' + data.text.substring(0, 60) + (data.text.length > 60 ? '...' : ''), 'ok');
           transcriptionText.textContent = data.text;
           resultSection.classList.add('visible');
           setStatus('Transcription complete', 'complete');
