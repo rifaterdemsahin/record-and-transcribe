@@ -3,7 +3,7 @@
 ## Project: Record & Transcribe
 
 ### What This Project Does
-Records audio from the browser and transcribes it using OpenAI Whisper.
+Records audio from the browser and transcribes it using OpenRouter (Whisper).
 
 ### Development Commands
 ```bash
@@ -18,7 +18,8 @@ npm run dev          # Start with auto-reload (nodemon)
 - `.github/workflows/deploy.yml` — Deploys to fly.io on push to main
 
 ### Secrets
-- `OPENAI_API_KEY` — set on fly.io via `fly secrets set OPENAI_API_KEY=...`
+- `OPENROUTER_API_KEY` — set on fly.io via `fly secrets set OPENROUTER_API_KEY=...`
+  - Pulled from Azure Key Vault (`dp-kv-deliverypilot`) via `az keyvault secret show`
 - `FLY_API_TOKEN` — set in GitHub repo secrets for Actions deployment
 
 ### Deployment
@@ -29,7 +30,7 @@ npm run dev          # Start with auto-reload (nodemon)
 
 ### Testing Locally
 ```bash
-OPENAI_API_KEY=sk-... npm start
+OPENROUTER_API_KEY=sk-or-v1-... npm start
 # Open http://localhost:3000
 ```
 

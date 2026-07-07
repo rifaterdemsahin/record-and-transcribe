@@ -1,6 +1,6 @@
 # Record & Transcribe
 
-Record audio from your browser and transcribe it using OpenAI Whisper.
+Record audio from your browser and transcribe it using OpenRouter (Whisper).
 
 ## Live Demo
 
@@ -11,7 +11,7 @@ Record audio from your browser and transcribe it using OpenAI Whisper.
 ## Features
 
 - Record audio from your microphone
-- Transcribe with OpenAI Whisper
+- Transcribe with OpenRouter Whisper
 - Copy transcribed text to clipboard
 - Download audio as `.webm`
 - Download transcription as `.txt`
@@ -21,7 +21,7 @@ Record audio from your browser and transcribe it using OpenAI Whisper.
 
 ```bash
 npm install
-OPENAI_API_KEY=sk-... npm start
+OPENROUTER_API_KEY=sk-or-v1-... npm start
 ```
 
 Open http://localhost:3000
@@ -30,7 +30,7 @@ Open http://localhost:3000
 
 ```bash
 fly launch
-fly secrets set OPENAI_API_KEY=sk-...
+fly secrets set OPENROUTER_API_KEY=sk-or-v1-...
 fly deploy
 ```
 

@@ -1,7 +1,7 @@
 # Spec: Record & Transcribe
 
 ## Overview
-A web application that records audio from the browser microphone, uploads it to a server, transcribes it using OpenAI Whisper, and returns the transcribed text. Deployed on fly.io with GitHub Actions CI/CD.
+A web application that records audio from the browser microphone, uploads it to a server, transcribes it using OpenRouter (Whisper), and returns the transcribed text. Deployed on fly.io with GitHub Actions CI/CD.
 
 ## Architecture
 
@@ -11,9 +11,9 @@ Browser (MediaRecorder API)
     ▼
 Express Server (Node.js)
     │  multipart/form-data → buffer
-    │  POST https://api.openai.com/v1/audio/transcriptions
+    │  POST https://openrouter.ai/api/v1/audio/transcriptions
     ▼
-OpenAI Whisper API
+OpenRouter (Whisper)
     │  { text: "..." }
     ▼
 Express → JSON response → Browser renders text
@@ -21,15 +21,16 @@ Express → JSON response → Browser renders text
 
 ## Tech Stack
 - **Frontend**: Single `index.html` with vanilla JS, CSS, responsive design
-- **Backend**: Node.js + Express, `multer` for file uploads, `openai` npm package
-- **Transcription**: OpenAI Whisper API (`whisper-1` model)
+- **Backend**: Node.js + Express, `multer` for file uploads, `openai` npm package → OpenRouter
+- **Transcription**: OpenRouter (`openai/whisper-1` model)
 - **Deployment**: Docker → fly.io
 - **CI/CD**: GitHub Actions with `flyctl`
 
 ## Features
 - Record audio via microphone
 - Visual recording timer
-- Upload & transcribe via OpenAI Whisper
+- Download audio before or after transcription
+- Upload & transcribe via OpenRouter Whisper
 - Display transcribed text
 - Copy text to clipboard
 - Download audio as `.webm`
@@ -39,7 +40,7 @@ Express → JSON response → Browser renders text
 ## Environment Variables
 | Variable | Purpose |
 |----------|---------|
-| `OPENAI_API_KEY` | OpenAI API key for Whisper transcription |
+| `OPENROUTER_API_KEY` | OpenRouter API key for Whisper transcription |
 
 ## API Endpoints
 | Method | Path | Description |

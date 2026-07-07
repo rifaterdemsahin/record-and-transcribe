@@ -73,6 +73,10 @@
       color: #fbbf24;
     }
 
+    .status.complete {
+      color: #4ade80;
+    }
+
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.5; }
@@ -130,6 +134,17 @@
     }
 
     .result-section.visible {
+      display: flex;
+    }
+
+    .ready-section {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .ready-section.visible {
       display: flex;
     }
 
@@ -234,6 +249,19 @@
             <circle cx="12" cy="12" r="6"/>
           </svg>
         </button>
+        <div class="ready-section" id="readySection">
+          <button class="btn btn-secondary" id="downloadAudioBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7,10 12,15 17,10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Download Audio
+          </button>
+          <button class="btn btn-primary" id="transcribeBtn">
+            Transcribe
+          </button>
+        </div>
       </div>
     </div>
 
@@ -256,14 +284,6 @@
           </svg>
           Download .txt
         </button>
-        <button class="btn btn-secondary" id="downloadAudioBtn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="7,10 12,15 17,10"/>
-            <line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
-          Download Audio
-        </button>
       </div>
     </div>
   </div>
@@ -273,12 +293,14 @@
       const recordBtn = document.getElementById('recordBtn');
       const timerEl = document.getElementById('timer');
       const statusEl = document.getElementById('status');
+      const readySection = document.getElementById('readySection');
       const resultSection = document.getElementById('resultSection');
       const transcriptionText = document.getElementById('transcriptionText');
       const errorMessage = document.getElementById('errorMessage');
       const copyBtn = document.getElementById('copyBtn');
       const downloadTextBtn = document.getElementById('downloadTextBtn');
       const downloadAudioBtn = document.getElementById('downloadAudioBtn');
+      const transcribeBtn = document.getElementById('transcribeBtn');
 
       let mediaRecorder;
       let audioChunks = [];
@@ -303,6 +325,13 @@
         errorMessage.style.display = text ? 'block' : 'none';
       }
 
+      function resetUI() {
+        readySection.classList.remove('visible');
+        resultSection.classList.remove('visible');
+        transcriptionText.textContent = 'Transcribed text will appear here...';
+        setError('');
+      }
+
       async function startRecording() {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -323,6 +352,7 @@
           audioBlob = null;
           timerEl.textContent = '00:00';
           recordBtn.classList.add('recording');
+          resetUI();
           setStatus('Recording...', 'recording');
           setError('');
 
@@ -342,15 +372,23 @@
         isRecording = false;
         clearInterval(timerInterval);
         recordBtn.classList.remove('recording');
+
+        audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        setStatus('Recording complete — ' + formatTime(seconds), 'complete');
+        readySection.classList.add('visible');
       }
 
       async function transcribeAudio() {
-        audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        if (!audioBlob) return;
+
         const formData = new FormData();
         formData.append('audio', audioBlob, 'recording.webm');
 
+        readySection.classList.remove('visible');
+        resultSection.classList.remove('visible');
         setStatus('Transcribing...', 'transcribing');
         recordBtn.disabled = true;
+        transcribeBtn.disabled = true;
 
         try {
           const response = await fetch('/api/transcribe', {
@@ -366,24 +404,26 @@
 
           transcriptionText.textContent = data.text;
           resultSection.classList.add('visible');
-          setStatus('Transcription complete');
+          setStatus('Transcription complete', 'complete');
           setError('');
         } catch (err) {
           setError(err.message || 'Transcription failed. Please try again.');
-          setStatus('Press record to start');
+          setStatus('Transcription failed');
         } finally {
           recordBtn.disabled = false;
+          transcribeBtn.disabled = false;
         }
       }
 
       recordBtn.addEventListener('click', () => {
         if (isRecording) {
           stopRecording();
-          transcribeAudio();
         } else {
           startRecording();
         }
       });
+
+      transcribeBtn.addEventListener('click', transcribeAudio);
 
       copyBtn.addEventListener('click', () => {
         const text = transcriptionText.textContent;
