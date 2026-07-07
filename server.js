@@ -23,6 +23,7 @@ const openai = new OpenAI({
 });
 
 const CREDITS_LINK = 'https://openrouter.ai/settings/credits';
+const COST_COMPARE = 'https://github.com/rifaterdemsahin/record-and-transcribe/blob/main/cost-comparison.md';
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
@@ -36,6 +37,8 @@ app.get('/api/debug', (req, res) => {
     fallback: 'google/gemini-2.0-flash-001',
     keyPresent: !!process.env.OPENROUTER_API_KEY,
     keyPrefix: process.env.OPENROUTER_API_KEY ? process.env.OPENROUTER_API_KEY.substring(0, 12) + '...' : 'not set',
+    costComparison: COST_COMPARE,
+    creditsLink: CREDITS_LINK,
   });
 });
 
@@ -102,6 +105,7 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
           res.status(500).json({
             error: 'Whisper requires credits (402). Gemini fallback also failed: ' + geminiErr.message,
             creditsLink: CREDITS_LINK,
+            costComparison: COST_COMPARE,
           });
         }
       } else {
@@ -113,7 +117,7 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
     const msg = err.status === 402
       ? 'OpenRouter Whisper requires $0.50+ balance. ' + CREDITS_LINK
       : (err.message || 'Transcription failed');
-    res.status(500).json({ error: msg, creditsLink: err.status === 402 ? CREDITS_LINK : null });
+    res.status(500).json({ error: msg, creditsLink: err.status === 402 ? CREDITS_LINK : null, costComparison: err.status === 402 ? COST_COMPARE : null });
   }
 });
 

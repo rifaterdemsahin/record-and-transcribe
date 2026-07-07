@@ -290,6 +290,22 @@
     .debug-log .ok { color: #4ade80; }
     .debug-log .key { color: #a78bfa; }
 
+    .cost-footer {
+      text-align: center;
+      font-size: 0.7rem;
+      color: #52525b;
+      padding-top: 4px;
+    }
+
+    .cost-footer a {
+      color: #71717a;
+      text-decoration: none;
+    }
+
+    .cost-footer a:hover {
+      color: #a1a1aa;
+    }
+
     @media (max-width: 480px) {
       .container { max-width: 100%; }
       h1 { font-size: 1.4rem; }
@@ -374,6 +390,12 @@
       </div>
       <pre class="debug-log visible" id="debugLog"></pre>
     </div>
+
+    <div class="cost-footer">
+      <a href="https://github.com/rifaterdemsahin/record-and-transcribe/blob/main/cost-comparison.md" target="_blank">OpenRouter vs fly.io cost comparison ↗</a>
+      ·
+      <a href="https://openrouter.ai/settings/credits" target="_blank">OpenRouter credits ↗</a>
+    </div>
   </div>
 
   <script>
@@ -445,6 +467,7 @@
           const r = await fetch('/api/debug');
           const d = await r.json();
           debug('Server: ' + d.provider + ' | whisper=' + d.model + ' | fallback=' + d.fallback + ' | key=' + d.keyPrefix, 'key');
+          debug('Cost: OpenRouter $0.006/min vs fly.io local $5.70/mo | ' + d.costComparison, 'info');
         } catch (e) {
           debug('Server debug fetch failed: ' + e.message, 'error');
         }
@@ -670,10 +693,14 @@
           if (!response.ok) {
             debug('Response ' + response.status + ': ' + (data.error || 'unknown'), 'error');
             if (data.creditsLink) {
-              debug('Add credits: ' + data.creditsLink, 'warn');
+              debug('Credits: ' + data.creditsLink, 'warn');
+            }
+            if (data.costComparison) {
+              debug('Cost compare: ' + data.costComparison, 'info');
             }
             let msg = data.error || 'Transcription failed';
-            if (data.creditsLink) msg += '\n\nAdd credits: ' + data.creditsLink;
+            if (data.creditsLink) msg += '\n\nCredits: ' + data.creditsLink;
+            if (data.costComparison) msg += '\nCost comparison: ' + data.costComparison;
             throw new Error(msg);
           }
 
