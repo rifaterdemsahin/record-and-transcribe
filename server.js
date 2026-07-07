@@ -3,7 +3,7 @@ const multer = require('multer');
 const cors = require('cors');
 const OpenAI = require('openai');
 const { toFile } = require('openai/uploads');
-const { execFile } = require('child_process');
+const { spawn } = require('child_process');
 const path = require('path');
 
 const app = express();
@@ -132,7 +132,7 @@ app.post('/api/convert-to-mp3', upload.single('audio'), async (req, res) => {
 
     const mp3Buffer = await new Promise((resolve, reject) => {
       const chunks = [];
-      const child = execFile('ffmpeg', [
+      const ffmpeg = spawn('ffmpeg', [
         '-y',
         '-f', 'webm',
         '-i', 'pipe:0',
@@ -140,16 +140,25 @@ app.post('/api/convert-to-mp3', upload.single('audio'), async (req, res) => {
         '-qscale:a', '2',
         '-f', 'mp3',
         'pipe:1',
-      ], { maxBuffer: 50 * 1024 * 1024 }, (err) => {
-        if (err && err.code !== 0) reject(err);
-        else resolve(Buffer.concat(chunks));
+      ]);
+
+      ffmpeg.stdout.on('data', (data) => chunks.push(data));
+
+      let stderr = '';
+      ffmpeg.stderr.on('data', (data) => { stderr += data.toString(); });
+
+      ffmpeg.on('close', (code) => {
+        if (code === 0) {
+          resolve(Buffer.concat(chunks));
+        } else {
+          reject(new Error('ffmpeg exit code ' + code + ': ' + stderr.split('\n').slice(-3).join(' ')));
+        }
       });
 
-      child.stdout.on('data', (data) => chunks.push(data));
-      child.stderr.on('data', () => {});
+      ffmpeg.on('error', (err) => reject(err));
 
-      child.stdin.write(req.file.buffer);
-      child.stdin.end();
+      ffmpeg.stdin.write(req.file.buffer);
+      ffmpeg.stdin.end();
     });
 
     console.log('MP3 size:', mp3Buffer.length);

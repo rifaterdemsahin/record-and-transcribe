@@ -392,6 +392,7 @@
       <div class="debug-header" id="debugToggle">
         <span>Debug</span>
         <div class="debug-actions">
+          <button class="debug-copy-btn" id="debugClearBtn">Clear</button>
           <button class="debug-copy-btn" id="debugCopyBtn">Copy</button>
           <span id="debugArrow">▲</span>
         </div>
@@ -432,6 +433,7 @@
       const debugToggle = document.getElementById('debugToggle');
       const debugArrow = document.getElementById('debugArrow');
       const debugCopyBtn = document.getElementById('debugCopyBtn');
+      const debugClearBtn = document.getElementById('debugClearBtn');
 
       let mediaRecorder;
       let audioChunks = [];
@@ -496,6 +498,12 @@
           debugCopyBtn.textContent = 'Copied';
           setTimeout(() => { debugCopyBtn.textContent = 'Copy'; }, 1500);
         });
+      });
+
+      debugClearBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        clearDebug();
+        fetchServerDebug();
       });
 
       function formatTime(s) {
