@@ -3,6 +3,9 @@ const multer = require('multer');
 const cors = require('cors');
 const OpenAI = require('openai');
 const { toFile } = require('openai/uploads');
+const { execFile } = require('child_process');
+const os = require('os');
+const fs = require('fs');
 const path = require('path');
 
 const app = express();
@@ -118,6 +121,46 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
       ? 'OpenRouter Whisper requires $0.50+ balance. ' + CREDITS_LINK
       : (err.message || 'Transcription failed');
     res.status(500).json({ error: msg, creditsLink: err.status === 402 ? CREDITS_LINK : null, costComparison: err.status === 402 ? COST_COMPARE : null });
+  }
+});
+
+app.post('/api/convert-to-mp3', upload.single('audio'), async (req, res) => {
+  const tmpDir = os.tmpdir();
+  const inputFile = path.join(tmpDir, 'input-' + Date.now() + '.webm');
+  const outputFile = path.join(tmpDir, 'output-' + Date.now() + '.mp3');
+
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No audio file provided' });
+    }
+
+    fs.writeFileSync(inputFile, req.file.buffer);
+
+    await new Promise((resolve, reject) => {
+      execFile('ffmpeg', [
+        '-y', '-i', inputFile,
+        '-codec:a', 'libmp3lame',
+        '-qscale:a', '2',
+        outputFile,
+      ], (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
+    const mp3Buffer = fs.readFileSync(outputFile);
+    res.set({
+      'Content-Type': 'audio/mpeg',
+      'Content-Disposition': 'attachment; filename="recording.mp3"',
+      'Content-Length': mp3Buffer.length,
+    });
+    res.send(mp3Buffer);
+  } catch (err) {
+    console.error('MP3 conversion error:', err.message);
+    res.status(500).json({ error: 'MP3 conversion failed: ' + err.message });
+  } finally {
+    try { fs.unlinkSync(inputFile); } catch (e) {}
+    try { fs.unlinkSync(outputFile); } catch (e) {}
   }
 });
 

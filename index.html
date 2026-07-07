@@ -351,6 +351,14 @@
             </svg>
             Download Audio
           </button>
+          <button class="btn btn-secondary" id="downloadMp3Btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7,10 12,15 17,10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Download MP3
+          </button>
           <button class="btn btn-primary" id="transcribeBtn">
             Transcribe
           </button>
@@ -414,6 +422,7 @@
       const copyBtn = document.getElementById('copyBtn');
       const downloadTextBtn = document.getElementById('downloadTextBtn');
       const downloadAudioBtn = document.getElementById('downloadAudioBtn');
+      const downloadMp3Btn = document.getElementById('downloadMp3Btn');
       const transcribeBtn = document.getElementById('transcribeBtn');
       const playBtn = document.getElementById('playBtn');
       const playIcon = document.getElementById('playIcon');
@@ -785,6 +794,35 @@
         a.download = 'recording.' + ext;
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
+      });
+
+      downloadMp3Btn.addEventListener('click', async () => {
+        if (!audioBlob || audioBlob.size === 0) {
+          debug('MP3 download blocked: blob is ' + (audioBlob ? audioBlob.size + ' bytes' : 'null'), 'error');
+          setError('No audio data. Please record first.');
+          return;
+        }
+        debug('Converting to MP3...', 'warn');
+        const formData = new FormData();
+        formData.append('audio', audioBlob, 'recording.webm');
+        try {
+          const r = await fetch('/api/convert-to-mp3', { method: 'POST', body: formData });
+          if (!r.ok) {
+            const d = await r.json();
+            throw new Error(d.error || 'MP3 conversion failed');
+          }
+          const mp3Blob = await r.blob();
+          debug('MP3: ' + (mp3Blob.size / 1024).toFixed(1) + ' KB', 'ok');
+          const url = URL.createObjectURL(mp3Blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'recording.mp3';
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (err) {
+          debug('MP3 error: ' + err.message, 'error');
+          setError('MP3 conversion failed: ' + err.message);
+        }
       });
     })();
   </script>
