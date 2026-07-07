@@ -771,11 +771,12 @@
       downloadTextBtn.addEventListener('click', () => {
         const text = transcriptionText.textContent;
         if (!text || text === 'Transcribed text will appear here...') return;
+        const ts = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
         const blob = new Blob([text], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'transcription.txt';
+        a.download = 'transcription-' + ts + '.txt';
         a.click();
         URL.revokeObjectURL(url);
       });
@@ -788,10 +789,11 @@
         }
         const ext = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'webm';
         const url = URL.createObjectURL(audioBlob);
-        debug('Download: recording.' + ext + ' (' + (audioBlob.size / 1024).toFixed(1) + ' KB)', 'ok');
+        const ts = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
+        debug('Download: recording-' + ts + '.' + ext + ' (' + (audioBlob.size / 1024).toFixed(1) + ' KB)', 'ok');
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'recording.' + ext;
+        a.download = 'recording-' + ts + '.' + ext;
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       });
@@ -814,9 +816,10 @@
           const mp3Blob = await r.blob();
           debug('MP3: ' + (mp3Blob.size / 1024).toFixed(1) + ' KB', 'ok');
           const url = URL.createObjectURL(mp3Blob);
+          const ts = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
           const a = document.createElement('a');
           a.href = url;
-          a.download = 'recording.mp3';
+          a.download = 'recording-' + ts + '.mp3';
           a.click();
           setTimeout(() => URL.revokeObjectURL(url), 1000);
         } catch (err) {
