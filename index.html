@@ -241,6 +241,28 @@
       color: #a1a1aa;
     }
 
+    .debug-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .debug-copy-btn {
+      background: #27272a;
+      border: 1px solid #3f3f46;
+      color: #a1a1aa;
+      font-size: 0.65rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .debug-copy-btn:hover {
+      color: #fff;
+      border-color: #52525b;
+    }
+
     .debug-log {
       background: #0c0c12;
       border-top: 1px solid #2a2a3a;
@@ -345,7 +367,10 @@
     <div class="card debug-panel" id="debugPanel">
       <div class="debug-header" id="debugToggle">
         <span>Debug</span>
-        <span id="debugArrow">▲</span>
+        <div class="debug-actions">
+          <button class="debug-copy-btn" id="debugCopyBtn">Copy</button>
+          <span id="debugArrow">▲</span>
+        </div>
       </div>
       <pre class="debug-log visible" id="debugLog"></pre>
     </div>
@@ -373,6 +398,7 @@
       const debugLog = document.getElementById('debugLog');
       const debugToggle = document.getElementById('debugToggle');
       const debugArrow = document.getElementById('debugArrow');
+      const debugCopyBtn = document.getElementById('debugCopyBtn');
 
       let mediaRecorder;
       let audioChunks = [];
@@ -427,6 +453,15 @@
       debugToggle.addEventListener('click', () => {
         const open = debugLog.classList.toggle('visible');
         debugArrow.textContent = open ? '▲' : '▼';
+      });
+
+      debugCopyBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const text = debugLog.textContent || debugLog.innerText;
+        navigator.clipboard.writeText(text).then(() => {
+          debugCopyBtn.textContent = 'Copied';
+          setTimeout(() => { debugCopyBtn.textContent = 'Copy'; }, 1500);
+        });
       });
 
       function formatTime(s) {
