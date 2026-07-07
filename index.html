@@ -248,6 +248,13 @@
           </svg>
         </button>
         <div class="ready-section" id="readySection">
+          <button class="btn btn-secondary" id="playBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" id="playIcon">
+              <polygon points="5,3 19,12 5,21"/>
+            </svg>
+            <span id="playLabel">Play</span>
+          </button>
+          <audio id="audioPlayer" style="display:none;"></audio>
           <button class="btn btn-secondary" id="downloadAudioBtn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -301,6 +308,10 @@
       const downloadTextBtn = document.getElementById('downloadTextBtn');
       const downloadAudioBtn = document.getElementById('downloadAudioBtn');
       const transcribeBtn = document.getElementById('transcribeBtn');
+      const playBtn = document.getElementById('playBtn');
+      const playIcon = document.getElementById('playIcon');
+      const playLabel = document.getElementById('playLabel');
+      const audioPlayer = document.getElementById('audioPlayer');
 
       let mediaRecorder;
       let audioChunks = [];
@@ -308,6 +319,7 @@
       let seconds = 0;
       let isRecording = false;
       let audioBlob = null;
+      let audioSrc = null;
       let mimeType = '';
       let audioContext;
       let analyser;
@@ -349,6 +361,9 @@
         readySection.classList.remove('visible');
         resultSection.classList.remove('visible');
         transcriptionText.textContent = 'Transcribed text will appear here...';
+        audioPlayer.pause();
+        audioPlayer.src = '';
+        if (audioSrc) { URL.revokeObjectURL(audioSrc); audioSrc = null; }
         setError('');
       }
 
@@ -417,6 +432,11 @@
 
       function finalizeRecording() {
         audioBlob = new Blob(audioChunks, { type: mimeType || 'audio/webm' });
+        if (audioSrc) URL.revokeObjectURL(audioSrc);
+        audioSrc = URL.createObjectURL(audioBlob);
+        audioPlayer.src = audioSrc;
+        playIcon.innerHTML = '<polygon points="5,3 19,12 5,21"/>';
+        playLabel.textContent = 'Play';
         stopWave();
         setStatus('Recording complete — ' + formatTime(seconds), 'complete');
         readySection.classList.add('visible');
@@ -533,6 +553,23 @@
       });
 
       transcribeBtn.addEventListener('click', transcribeAudio);
+
+      playBtn.addEventListener('click', () => {
+        if (audioPlayer.paused) {
+          audioPlayer.play();
+          playIcon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+          playLabel.textContent = 'Pause';
+        } else {
+          audioPlayer.pause();
+          playIcon.innerHTML = '<polygon points="5,3 19,12 5,21"/>';
+          playLabel.textContent = 'Play';
+        }
+      });
+
+      audioPlayer.addEventListener('ended', () => {
+        playIcon.innerHTML = '<polygon points="5,3 19,12 5,21"/>';
+        playLabel.textContent = 'Play';
+      });
 
       copyBtn.addEventListener('click', () => {
         const text = transcriptionText.textContent;
