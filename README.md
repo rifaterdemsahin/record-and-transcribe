@@ -8,12 +8,12 @@ Record audio from your browser and transcribe it using OpenAI Whisper.
 
 ## Features
 
-- 🎤 Record audio from your microphone
-- 📝 Transcribe with OpenAI Whisper
-- 📋 Copy transcribed text to clipboard
-- ⬇️ Download audio as `.webm`
-- ⬇️ Download transcription as `.txt`
-- 📱 Responsive design (mobile + desktop)
+- Record audio from your microphone
+- Transcribe with OpenAI Whisper
+- Copy transcribed text to clipboard
+- Download audio as `.webm`
+- Download transcription as `.txt`
+- Responsive design (mobile + desktop)
 
 ## Quick Start
 
@@ -35,3 +35,12 @@ fly deploy
 ## CI/CD
 
 Push to `main` branch triggers automatic deployment via GitHub Actions to fly.io.
+
+See [formula_flytoken.md](formula_flytoken.md) for the FLY_API_TOKEN setup process.
+
+## Docs
+
+- [spec.md](spec.md) — Architecture & requirements
+- [agents.md](agents.md) — AI agent instructions
+- [todo.md](todo.md) — Status & pending items
+- [formula_flytoken.md](formula_flytoken.md) — fly.io token setup for CI/CD
