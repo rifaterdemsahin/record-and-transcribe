@@ -38,3 +38,16 @@ OPENROUTER_API_KEY=sk-or-v1-... npm start
 - Vanilla JS only (no frameworks)
 - Responsive CSS using flexbox/media queries
 - No TypeScript, plain Node.js CommonJS
+
+### Output Style
+- Always display the deployed URL at the end of every response in a prominent ASCII block so it's easy to see and copy:
+
+```
+┌──────────────────────────────────────────────┐
+│                                              │
+│   https://record-and-transcribe.fly.dev      │
+│                                              │
+└──────────────────────────────────────────────┘
+```
+
+- Use this format after every deploy, commit, or status update.
