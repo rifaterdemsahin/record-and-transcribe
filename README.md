@@ -6,6 +6,8 @@ Record audio from your browser and transcribe it using OpenAI Whisper.
 
 **[record-and-transcribe.fly.dev](https://record-and-transcribe.fly.dev)**
 
+> https://rifaterdemsahin.github.io/record-and-transcribe/
+
 ## Features
 
 - Record audio from your microphone
