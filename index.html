@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Record & Transcribe</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f0f14;
+      color: #e4e4e7;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      text-align: center;
+      background: linear-gradient(135deg, #a78bfa, #60a5fa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .card {
+      background: #1a1a24;
+      border: 1px solid #2a2a3a;
+      border-radius: 16px;
+      padding: 24px;
+    }
+
+    .recorder-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .timer {
+      font-size: 3rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: #a78bfa;
+    }
+
+    .status {
+      font-size: 0.875rem;
+      color: #71717a;
+      text-align: center;
+      min-height: 20px;
+    }
+
+    .status.recording {
+      color: #f87171;
+      animation: pulse 1.5s infinite;
+    }
+
+    .status.transcribing {
+      color: #fbbf24;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-record {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: #f87171;
+      color: white;
+      font-size: 1.5rem;
+      box-shadow: 0 0 0 8px rgba(248, 113, 113, 0.2);
+    }
+
+    .btn-record:hover:not(:disabled) {
+      transform: scale(1.05);
+      box-shadow: 0 0 0 12px rgba(248, 113, 113, 0.3);
+    }
+
+    .btn-record.recording {
+      background: #ef4444;
+      box-shadow: 0 0 0 8px rgba(239, 68, 68, 0.3);
+      animation: pulse 1.5s infinite;
+    }
+
+    .btn-record.recording:hover:not(:disabled) {
+      box-shadow: 0 0 0 12px rgba(239, 68, 68, 0.4);
+    }
+
+    .result-section {
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .result-section.visible {
+      display: flex;
+    }
+
+    .transcription-text {
+      background: #12121a;
+      border: 1px solid #2a2a3a;
+      border-radius: 12px;
+      padding: 16px;
+      font-size: 0.9375rem;
+      line-height: 1.6;
+      color: #d4d4d8;
+      white-space: pre-wrap;
+      word-break: break-word;
+      min-height: 80px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .btn-secondary {
+      background: #27272a;
+      color: #e4e4e7;
+      border: 1px solid #3f3f46;
+      flex: 1;
+      min-width: 120px;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: #3f3f46;
+    }
+
+    .btn-primary {
+      background: #7c3aed;
+      color: white;
+      flex: 1;
+      min-width: 120px;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #6d28d9;
+    }
+
+    .error-message {
+      color: #f87171;
+      font-size: 0.875rem;
+      text-align: center;
+    }
+
+    @media (max-width: 480px) {
+      .container {
+        max-width: 100%;
+      }
+
+      h1 {
+        font-size: 1.4rem;
+      }
+
+      .timer {
+        font-size: 2.25rem;
+      }
+
+      .card {
+        padding: 16px;
+      }
+
+      .btn-record {
+        width: 60px;
+        height: 60px;
+        font-size: 1.25rem;
+      }
+
+      .btn {
+        padding: 10px 16px;
+        font-size: 0.875rem;
+      }
+
+      .actions {
+        flex-direction: column;
+      }
+
+      .actions .btn {
+        min-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Record & Transcribe</h1>
+
+    <div class="card">
+      <div class="recorder-section">
+        <div class="timer" id="timer">00:00</div>
+        <div class="status" id="status">Press record to start</div>
+        <button class="btn btn-record" id="recordBtn" title="Record">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="12" r="6"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="card result-section" id="resultSection">
+      <div class="transcription-text" id="transcriptionText">Transcribed text will appear here...</div>
+      <div class="error-message" id="errorMessage" style="display:none;"></div>
+      <div class="actions">
+        <button class="btn btn-secondary" id="copyBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+          Copy Text
+        </button>
+        <button class="btn btn-secondary" id="downloadTextBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7,10 12,15 17,10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Download .txt
+        </button>
+        <button class="btn btn-secondary" id="downloadAudioBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7,10 12,15 17,10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Download Audio
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const recordBtn = document.getElementById('recordBtn');
+      const timerEl = document.getElementById('timer');
+      const statusEl = document.getElementById('status');
+      const resultSection = document.getElementById('resultSection');
+      const transcriptionText = document.getElementById('transcriptionText');
+      const errorMessage = document.getElementById('errorMessage');
+      const copyBtn = document.getElementById('copyBtn');
+      const downloadTextBtn = document.getElementById('downloadTextBtn');
+      const downloadAudioBtn = document.getElementById('downloadAudioBtn');
+
+      let mediaRecorder;
+      let audioChunks = [];
+      let timerInterval;
+      let seconds = 0;
+      let isRecording = false;
+      let audioBlob = null;
+
+      function formatTime(s) {
+        const mins = Math.floor(s / 60).toString().padStart(2, '0');
+        const secs = (s % 60).toString().padStart(2, '0');
+        return `${mins}:${secs}`;
+      }
+
+      function setStatus(text, className) {
+        statusEl.textContent = text;
+        statusEl.className = 'status ' + (className || '');
+      }
+
+      function setError(text) {
+        errorMessage.textContent = text;
+        errorMessage.style.display = text ? 'block' : 'none';
+      }
+
+      async function startRecording() {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+
+          mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) audioChunks.push(e.data);
+          };
+
+          mediaRecorder.onstop = () => {
+            stream.getTracks().forEach(t => t.stop());
+          };
+
+          mediaRecorder.start();
+          isRecording = true;
+          audioChunks = [];
+          seconds = 0;
+          audioBlob = null;
+          timerEl.textContent = '00:00';
+          recordBtn.classList.add('recording');
+          setStatus('Recording...', 'recording');
+          setError('');
+
+          timerInterval = setInterval(() => {
+            seconds++;
+            timerEl.textContent = formatTime(seconds);
+          }, 1000);
+        } catch (err) {
+          setError('Microphone access denied. Please allow microphone access and try again.');
+        }
+      }
+
+      function stopRecording() {
+        if (!mediaRecorder || !isRecording) return;
+
+        mediaRecorder.stop();
+        isRecording = false;
+        clearInterval(timerInterval);
+        recordBtn.classList.remove('recording');
+      }
+
+      async function transcribeAudio() {
+        audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const formData = new FormData();
+        formData.append('audio', audioBlob, 'recording.webm');
+
+        setStatus('Transcribing...', 'transcribing');
+        recordBtn.disabled = true;
+
+        try {
+          const response = await fetch('/api/transcribe', {
+            method: 'POST',
+            body: formData,
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || 'Transcription failed');
+          }
+
+          transcriptionText.textContent = data.text;
+          resultSection.classList.add('visible');
+          setStatus('Transcription complete');
+          setError('');
+        } catch (err) {
+          setError(err.message || 'Transcription failed. Please try again.');
+          setStatus('Press record to start');
+        } finally {
+          recordBtn.disabled = false;
+        }
+      }
+
+      recordBtn.addEventListener('click', () => {
+        if (isRecording) {
+          stopRecording();
+          transcribeAudio();
+        } else {
+          startRecording();
+        }
+      });
+
+      copyBtn.addEventListener('click', () => {
+        const text = transcriptionText.textContent;
+        if (!text || text === 'Transcribed text will appear here...') return;
+        navigator.clipboard.writeText(text).then(() => {
+          const orig = copyBtn.innerHTML;
+          copyBtn.innerHTML = copyBtn.innerHTML.replace(/Copy Text/, 'Copied!');
+          setTimeout(() => { copyBtn.innerHTML = orig; }, 2000);
+        });
+      });
+
+      downloadTextBtn.addEventListener('click', () => {
+        const text = transcriptionText.textContent;
+        if (!text || text === 'Transcribed text will appear here...') return;
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'transcription.txt';
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+
+      downloadAudioBtn.addEventListener('click', () => {
+        if (!audioBlob) return;
+        const url = URL.createObjectURL(audioBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'recording.webm';
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+    })();
+  </script>
+</body>
+</html>
