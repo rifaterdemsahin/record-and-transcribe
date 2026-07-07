@@ -218,6 +218,56 @@
       text-align: center;
     }
 
+    .debug-panel {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .debug-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #71717a;
+      user-select: none;
+    }
+
+    .debug-header:hover {
+      color: #a1a1aa;
+    }
+
+    .debug-log {
+      background: #0c0c12;
+      border-top: 1px solid #2a2a3a;
+      padding: 12px 16px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.7rem;
+      line-height: 1.6;
+      color: #a1a1aa;
+      max-height: 300px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin: 0;
+      display: none;
+    }
+
+    .debug-log.visible {
+      display: block;
+    }
+
+    .debug-log .ts { color: #52525b; }
+    .debug-log .info { color: #60a5fa; }
+    .debug-log .warn { color: #fbbf24; }
+    .debug-log .error { color: #f87171; }
+    .debug-log .ok { color: #4ade80; }
+    .debug-log .key { color: #a78bfa; }
+
     @media (max-width: 480px) {
       .container { max-width: 100%; }
       h1 { font-size: 1.4rem; }
@@ -291,6 +341,14 @@
         </button>
       </div>
     </div>
+
+    <div class="card debug-panel" id="debugPanel">
+      <div class="debug-header" id="debugToggle">
+        <span>Debug</span>
+        <span id="debugArrow">▲</span>
+      </div>
+      <pre class="debug-log visible" id="debugLog"></pre>
+    </div>
   </div>
 
   <script>
@@ -312,6 +370,9 @@
       const playIcon = document.getElementById('playIcon');
       const playLabel = document.getElementById('playLabel');
       const audioPlayer = document.getElementById('audioPlayer');
+      const debugLog = document.getElementById('debugLog');
+      const debugToggle = document.getElementById('debugToggle');
+      const debugArrow = document.getElementById('debugArrow');
 
       let mediaRecorder;
       let audioChunks = [];
@@ -340,6 +401,33 @@
         }
         return '';
       }
+
+      function debug(msg, cls) {
+        const ts = new Date().toLocaleTimeString();
+        const line = `<span class="ts">${ts}</span> <span class="${cls || 'info'}">${msg}</span>\n`;
+        debugLog.innerHTML += line;
+        debugLog.scrollTop = debugLog.scrollHeight;
+      }
+
+      function clearDebug() {
+        debugLog.innerHTML = '';
+        debug('--- new session ---', 'key');
+      }
+
+      async function fetchServerDebug() {
+        try {
+          const r = await fetch('/api/debug');
+          const d = await r.json();
+          debug('Server: ' + d.provider + ' | model=' + d.model + ' | key=' + d.keyPrefix, 'key');
+        } catch (e) {
+          debug('Server debug fetch failed: ' + e.message, 'error');
+        }
+      }
+
+      debugToggle.addEventListener('click', () => {
+        const open = debugLog.classList.toggle('visible');
+        debugArrow.textContent = open ? '▲' : '▼';
+      });
 
       function formatTime(s) {
         const mins = Math.floor(s / 60).toString().padStart(2, '0');
@@ -432,6 +520,7 @@
 
       function finalizeRecording() {
         audioBlob = new Blob(audioChunks, { type: mimeType || 'audio/webm' });
+        debug('Chunks: ' + audioChunks.length + ' | Blob: ' + (audioBlob.size / 1024).toFixed(1) + ' KB | Duration: ' + formatTime(seconds), 'ok');
         if (audioSrc) URL.revokeObjectURL(audioSrc);
         audioSrc = URL.createObjectURL(audioBlob);
         audioPlayer.src = audioSrc;
@@ -444,11 +533,19 @@
 
       async function startRecording() {
         try {
+          clearDebug();
+          fetchServerDebug();
+
           stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           mimeType = detectMimeType();
 
+          debug('MIME: ' + (mimeType || 'browser default'), 'key');
+          debug('Audio tracks: ' + stream.getAudioTracks().length, 'info');
+
           const opts = mimeType ? { mimeType } : {};
           mediaRecorder = new MediaRecorder(stream, opts);
+
+          debug('Recorder state: ' + mediaRecorder.state, 'info');
 
           audioChunks = [];
 
@@ -459,17 +556,20 @@
           };
 
           mediaRecorder.onstop = () => {
+            debug('Recorder onstop fired', 'info');
             stream.getTracks().forEach(t => t.stop());
             stream = null;
             finalizeRecording();
           };
 
-          mediaRecorder.onerror = () => {
+          mediaRecorder.onerror = (e) => {
+            debug('Recorder error: ' + JSON.stringify(e.error), 'error');
             stopWave();
             setError('Recording error. Please try again.');
           };
 
           mediaRecorder.start(250);
+          debug('Recorder started (timeslice=250ms)', 'ok');
           isRecording = true;
           seconds = 0;
           audioBlob = null;
@@ -486,6 +586,7 @@
             timerEl.textContent = formatTime(seconds);
           }, 1000);
         } catch (err) {
+          debug('getUserMedia error: ' + err.message, 'error');
           stopWave();
           setError('Microphone access denied. Please allow microphone access and try again.');
         }
@@ -496,7 +597,9 @@
 
         if (mediaRecorder.state === 'recording') {
           mediaRecorder.requestData();
+          debug('requestData() called before stop', 'warn');
         }
+        debug('Stopping recorder (state=' + mediaRecorder.state + ')', 'warn');
         mediaRecorder.stop();
         isRecording = false;
         clearInterval(timerInterval);
@@ -513,6 +616,8 @@
         const formData = new FormData();
         formData.append('audio', audioBlob, 'recording.' + ext);
 
+        debug('POST /api/transcribe (' + (audioBlob.size / 1024).toFixed(1) + ' KB, ' + mimeType + ')', 'warn');
+
         readySection.classList.remove('visible');
         resultSection.classList.remove('visible');
         setStatus('Transcribing...', 'transcribing');
@@ -528,14 +633,17 @@
           const data = await response.json();
 
           if (!response.ok) {
+            debug('Response ' + response.status + ': ' + (data.error || 'unknown'), 'error');
             throw new Error(data.error || 'Transcription failed');
           }
 
+          debug('Response 200 OK | text: ' + data.text.substring(0, 60) + (data.text.length > 60 ? '...' : ''), 'ok');
           transcriptionText.textContent = data.text;
           resultSection.classList.add('visible');
           setStatus('Transcription complete', 'complete');
           setError('');
         } catch (err) {
+          debug('Fetch error: ' + err.message, 'error');
           setError(err.message || 'Transcription failed. Please try again.');
           setStatus('Transcription failed');
         } finally {
@@ -595,11 +703,13 @@
 
       downloadAudioBtn.addEventListener('click', () => {
         if (!audioBlob || audioBlob.size === 0) {
+          debug('Download blocked: blob is ' + (audioBlob ? audioBlob.size + ' bytes' : 'null'), 'error');
           setError('No audio data. Please record first.');
           return;
         }
         const ext = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'webm';
         const url = URL.createObjectURL(audioBlob);
+        debug('Download: recording.' + ext + ' (' + (audioBlob.size / 1024).toFixed(1) + ' KB)', 'ok');
         const a = document.createElement('a');
         a.href = url;
         a.download = 'recording.' + ext;
