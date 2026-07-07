@@ -338,14 +338,17 @@
           mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
 
           mediaRecorder.ondataavailable = (e) => {
-            if (e.data.size > 0) audioChunks.push(e.data);
+            audioChunks.push(e.data);
           };
 
           mediaRecorder.onstop = () => {
             stream.getTracks().forEach(t => t.stop());
+            audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            setStatus('Recording complete — ' + formatTime(seconds), 'complete');
+            readySection.classList.add('visible');
           };
 
-          mediaRecorder.start();
+          mediaRecorder.start(250);
           isRecording = true;
           audioChunks = [];
           seconds = 0;
@@ -372,10 +375,6 @@
         isRecording = false;
         clearInterval(timerInterval);
         recordBtn.classList.remove('recording');
-
-        audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        setStatus('Recording complete — ' + formatTime(seconds), 'complete');
-        readySection.classList.add('visible');
       }
 
       async function transcribeAudio() {
